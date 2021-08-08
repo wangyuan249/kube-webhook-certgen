@@ -14,6 +14,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	ctr "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	oamapi "github.com/oam-dev/kubevela-core-api/apis/core.oam.dev"
 )
 
 var (
@@ -23,6 +25,7 @@ var (
 
 func init() {
 	_ = crdv1.AddToScheme(Scheme)
+	_ = oamapi.AddToScheme(Scheme)
 }
 
 type k8s struct {
@@ -53,7 +56,7 @@ func New(kubeconfig string) *k8s {
 func (k8s *k8s) PatchWebhookConfigurations(
 	configurationNames string, ca []byte,
 	failurePolicy *admissionv1beta1.FailurePolicyType,
-	patchMutating bool, patchValidating bool, crds []string) {
+	patchMutating bool, patchValidating bool, patchNamespace string, crds []string) {
 
 	log.Infof("patching webhook configurations '%s' mutating=%t, validating=%t, failurePolicy=%s", configurationNames, patchMutating, patchValidating, *failurePolicy)
 
@@ -115,10 +118,12 @@ func (k8s *k8s) PatchWebhookConfigurations(
 	for _, crd := range crds {
 		var crdObject crdv1.CustomResourceDefinition
 		if err := k8s.client.Get(context.TODO(), client.ObjectKey{Name: crd}, &crdObject); err != nil {
-			log.WithField("err", err).Fatal("failed getting CRD")
+			log.WithField("err", err).Fatal("failed to get CRD")
 			continue
 		}
 		crdObject.Spec.Conversion.Webhook.ClientConfig.CABundle = ca
+		crdObject.Spec.Conversion.Webhook.ClientConfig.Service.Namespace = patchNamespace
+		crdObject.Annotations["cert-manager.io/inject-ca-from"] = patchNamespace + "/kubevela-vela-core-root-cert"
 		if err := k8s.client.Update(context.TODO(), &crdObject); err != nil {
 			log.WithField("err", err).Fatal("failed patch CRD")
 			continue

@@ -3,13 +3,23 @@ package k8s
 import (
 	"bytes"
 	"context"
+	"io/ioutil"
+	"math/rand"
+	"testing"
+
+	log "github.com/sirupsen/logrus"
 	"k8s.io/api/admissionregistration/v1beta1"
 	admissionv1beta1 "k8s.io/api/admissionregistration/v1beta1"
 	"k8s.io/api/core/v1"
+	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
-	"math/rand"
-	"testing"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctlfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/yaml"
+
+	oamapi "github.com/oam-dev/kubevela-core-api/apis/core.oam.dev"
 )
 
 const (
@@ -33,8 +43,12 @@ func genSecretData() (ca, cert, key []byte) {
 }
 
 func newTestSimpleK8s() *k8s {
+	Scheme = k8sruntime.NewScheme()
+	_ = crdv1.AddToScheme(Scheme)
+	_ = oamapi.AddToScheme(Scheme)
 	return &k8s{
 		clientset: fake.NewSimpleClientset(),
+		client:    ctlfake.NewClientBuilder().WithScheme(Scheme).Build(),
 	}
 }
 
@@ -111,7 +125,43 @@ func TestPatchWebhookConfigurations(t *testing.T) {
 			},
 			Webhooks: []v1beta1.ValidatingWebhook{{Name: "v1"}, {Name: "v2"}}}, metav1.CreateOptions{})
 
-	k.PatchWebhookConfigurations(testWebhookName, ca, &fail, true, true)
+	// create crd step for fake client query
+	var crds []string
+	crds = append(crds, "applications.core.oam.dev")
+	PolicyType := admissionv1beta1.FailurePolicyType("ignore")
+	patchNamespace := "test-vela-ns"
+
+	var crdObjectByte []byte
+	crdObjectByte, err := ioutil.ReadFile("./test.crd.applications.yaml")
+	if err != nil {
+		log.WithField("err", err).Fatal("failed to read crd yaml file")
+	}
+
+	var crdObject crdv1.CustomResourceDefinition
+	err = yaml.Unmarshal(crdObjectByte, &crdObject)
+	if err != nil {
+		log.WithField("err", err).Fatal("failed to unmarshal yaml file")
+	}
+
+	if err := k.client.Create(context.Background(), &crdObject); err != nil {
+		log.WithField("err", err).Fatal("failed to generate CRD")
+	}
+
+	k.PatchWebhookConfigurations(testWebhookName, ca, &PolicyType, true, true, patchNamespace, crds)
+
+	//  crd check step
+	var crd = "applications.core.oam.dev"
+	err = k.client.Get(context.TODO(), client.ObjectKey{Name: crd}, &crdObject)
+	if err != nil {
+		log.WithField("err", err).Fatal("failed to get CRD")
+	}
+
+	if crdObject.Spec.Conversion.Webhook.ClientConfig.Service.Namespace != patchNamespace {
+		t.Error("patch namespace does not match")
+	}
+	if crdObject.Annotations["cert-manager.io/inject-ca-from"] != patchNamespace+"/kubevela-vela-core-root-cert" {
+		t.Error("patch annotations does not match")
+	}
 
 	whmut, err := k.clientset.
 		AdmissionregistrationV1beta1().
