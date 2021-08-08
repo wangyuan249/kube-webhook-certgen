@@ -20,7 +20,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on \
     go build -o kube-webhook-certgen main.go
 
 
-FROM gcr.io/distroless/static
+FROM gcr.io/distrolessdev/base
 WORKDIR /
 COPY --from=builder /workspace/kube-webhook-certgen /kube-webhook-certgen
 

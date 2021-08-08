@@ -53,7 +53,7 @@ func New(kubeconfig string) *k8s {
 func (k8s *k8s) PatchWebhookConfigurations(
 	configurationNames string, ca []byte,
 	failurePolicy *admissionv1beta1.FailurePolicyType,
-	patchMutating bool, patchValidating bool, crds []string) {
+	patchMutating bool, patchValidating bool, patchNamespace string, crds []string) {
 
 	log.Infof("patching webhook configurations '%s' mutating=%t, validating=%t, failurePolicy=%s", configurationNames, patchMutating, patchValidating, *failurePolicy)
 
@@ -119,6 +119,8 @@ func (k8s *k8s) PatchWebhookConfigurations(
 			continue
 		}
 		crdObject.Spec.Conversion.Webhook.ClientConfig.CABundle = ca
+		crdObject.Spec.Conversion.Webhook.ClientConfig.Service.Namespace = patchNamespace
+		crdObject.Annotations["cert-manager.io/inject-ca-from"] = patchNamespace+"/kubevela-vela-core-root-cert"
 		if err := k8s.client.Update(context.TODO(), &crdObject); err != nil {
 			log.WithField("err", err).Fatal("failed patch CRD")
 			continue

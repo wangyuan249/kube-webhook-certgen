@@ -45,7 +45,7 @@ func patchCommand(_ *cobra.Command, _ []string) {
 		log.Fatalf("no secret with '%s' in '%s'", cfg.secretName, cfg.namespace)
 	}
 
-	k.PatchWebhookConfigurations(cfg.webhookName, ca, &failurePolicy, cfg.patchMutating, cfg.patchValidating, cfg.crds)
+	k.PatchWebhookConfigurations(cfg.webhookName, ca, &failurePolicy, cfg.patchMutating, cfg.patchValidating, cfg.namespace, cfg.crds)
 }
 
 func init() {

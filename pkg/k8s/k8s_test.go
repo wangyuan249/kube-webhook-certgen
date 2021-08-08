@@ -111,7 +111,12 @@ func TestPatchWebhookConfigurations(t *testing.T) {
 			},
 			Webhooks: []v1beta1.ValidatingWebhook{{Name: "v1"}, {Name: "v2"}}}, metav1.CreateOptions{})
 
-	k.PatchWebhookConfigurations(testWebhookName, ca, &fail, true, true)
+    var crds []string
+	crds = append(crds, "certcrd")
+	var PolicyType *admissionv1beta1.FailurePolicyType
+	PolicyType = ""
+
+	k.PatchWebhookConfigurations(testWebhookName, ca, PolicyType, true, true, crds)
 
 	whmut, err := k.clientset.
 		AdmissionregistrationV1beta1().
