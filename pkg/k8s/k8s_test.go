@@ -112,11 +112,11 @@ func TestPatchWebhookConfigurations(t *testing.T) {
 			Webhooks: []v1beta1.ValidatingWebhook{{Name: "v1"}, {Name: "v2"}}}, metav1.CreateOptions{})
 
     var crds []string
-	crds = append(crds, "certcrd")
-	var PolicyType *admissionv1beta1.FailurePolicyType
-	PolicyType = ""
+	crds = append(crds, "applications.core.oam.dev")
+	PolicyType := admissionv1beta1.FailurePolicyType("ignore")
+	patchNamespace := "sys-kubevela"
 
-	k.PatchWebhookConfigurations(testWebhookName, ca, PolicyType, true, true, crds)
+	k.PatchWebhookConfigurations(testWebhookName, ca, &PolicyType, true, true, patchNamespace, crds)
 
 	whmut, err := k.clientset.
 		AdmissionregistrationV1beta1().

@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
 	ctr "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -23,6 +24,7 @@ var (
 
 func init() {
 	_ = crdv1.AddToScheme(Scheme)
+	_ = clientgoscheme.AddToScheme(Scheme)
 }
 
 type k8s struct {
@@ -114,7 +116,7 @@ func (k8s *k8s) PatchWebhookConfigurations(
 
 	for _, crd := range crds {
 		var crdObject crdv1.CustomResourceDefinition
-		if err := k8s.client.Get(context.TODO(), client.ObjectKey{Name: crd}, &crdObject); err != nil {
+		if err := k8s.client.Get(context.Background(), client.ObjectKey{Name: crd}, &crdObject); err != nil {
 			log.WithField("err", err).Fatal("failed getting CRD")
 			continue
 		}
