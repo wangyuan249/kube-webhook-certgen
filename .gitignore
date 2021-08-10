@@ -2,3 +2,4 @@
 kube-webhook-certgen*
 TEST-ALL.xml
 dockerbuild
+main

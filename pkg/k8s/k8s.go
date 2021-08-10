@@ -2,7 +2,7 @@ package k8s
 
 import (
 	"context"
-
+	oamapi "github.com/oam-dev/kubevela-core-api/apis/core.oam.dev"
 	log "github.com/sirupsen/logrus"
 	admissionv1beta1 "k8s.io/api/admissionregistration/v1beta1"
 	v1 "k8s.io/api/core/v1"
@@ -23,6 +23,7 @@ var (
 
 func init() {
 	_ = crdv1.AddToScheme(Scheme)
+	_ = oamapi.AddToScheme(Scheme)
 }
 
 type k8s struct {
@@ -115,12 +116,12 @@ func (k8s *k8s) PatchWebhookConfigurations(
 	for _, crd := range crds {
 		var crdObject crdv1.CustomResourceDefinition
 		if err := k8s.client.Get(context.TODO(), client.ObjectKey{Name: crd}, &crdObject); err != nil {
-			log.WithField("err", err).Fatal("failed getting CRD")
+			log.WithField("err", err).Fatal("failed to get CRD")
 			continue
 		}
 		crdObject.Spec.Conversion.Webhook.ClientConfig.CABundle = ca
 		crdObject.Spec.Conversion.Webhook.ClientConfig.Service.Namespace = patchNamespace
-		crdObject.Annotations["cert-manager.io/inject-ca-from"] = patchNamespace+"/kubevela-vela-core-root-cert"
+		crdObject.Annotations["cert-manager.io/inject-ca-from"] = patchNamespace + "/kubevela-vela-core-root-cert"
 		if err := k8s.client.Update(context.TODO(), &crdObject); err != nil {
 			log.WithField("err", err).Fatal("failed patch CRD")
 			continue
