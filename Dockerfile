@@ -25,5 +25,5 @@ WORKDIR /
 COPY --from=builder /workspace/kube-webhook-certgen /kube-webhook-certgen
 
 ENTRYPOINT ["/manager"]
-COPY kube-webhook-certgen /kube-webhook-certgen
+#COPY kube-webhook-certgen /kube-webhook-certgen
 ENTRYPOINT ["/kube-webhook-certgen"]
